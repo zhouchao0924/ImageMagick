@@ -1,0 +1,7 @@
+.DS_Store
+dist/*
+coverage
+node_modules/
+thumbs.db
+!.gitkeep
+.idea

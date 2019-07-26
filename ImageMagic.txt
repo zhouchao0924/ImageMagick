@@ -1,0 +1,18 @@
+裁剪图片：magick image.png -crop 2160x2160+0+0 %3d.jpg
+多张图片合成avi：ffmpeg -f image2 -i %3d.jpg -vcodec libx264 -r 50 1.avi
+****************多张图片合成MP4：ffmpeg -i %3d.jpg -an -r 60 -filter:v "setpts=0.25*PTS" 1.mp4******************
+视频转图片：ffmpeg -i xxx.mp4 -r 1 -f image2 image-%3d.jpg
+
+视频加速：ffmpeg -i 1.mp4 -an -r 60 -filter:v "setpts=0.25*PTS" output.mp4
+
+视频用ts拼接：
+ffmpeg -i 1.mp4 -vcodec copy -acodec copy -vbsf h264_mp4toannexb 1.ts
+ffmpeg -i 2.mp4 -vcodec copy -acodec copy -vbsf h264_mp4toannexb 2.ts
+.....
+ffmpeg -i "concat:1.ts|2.ts|3.ts|4.ts|5.ts|6.ts|7.ts|8.ts|over.ts" -acodec copy -vcodec copy -absf aac_adtstoasc 54781.mp4
+
+截取音乐：ffmpeg -i radio.mp3 -ss 00:00:25 -t 00:00:45 -acodec copy 1.mp3
+
+合成：ffmpeg -i 54781.mp4 -i 1.mp3 -c:v copy -c:a aac -strict experimental output.mp4
+
+视频加水印：ffmpeg -i 54781.mp4 -vf "movie=000.png[watermark];[in][watermark] overlay=main_w-overlay_w-10:main_h-overlay_h-10[out] " output.mp4
