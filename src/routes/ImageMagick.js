@@ -11,7 +11,7 @@ const path = require('path');
 
 const request = require('request');
 
-const RoomList = [{ RoomName: '客厅' }, { RoomName: '餐厅' }, { RoomName: '主卧' }];
+const RoomList = [{ RoomName: '客厅' }];
 
 // 执行cmd命令
 async function exec(cmd) {
@@ -44,16 +44,21 @@ async function DownLoadImage(FilePath) {
 
 // 根据获取的参数循环执行cmd
 async function magick(FilePath, ToPath) {
-  for (let index = 0; index < 10; index += 1) {
+  for (let index = 0; index < 100; index += 1) {
     const Name = intToString(index, 3);
-    const cmdstring = `magick ${FilePath}/image.jpg -crop 1126x2160+${index * 5}+0 ${ToPath}/${Name}.jpg`;
+    // 平移镜头
+    // const cmdstring = `magick ${FilePath}/image.jpg -crop 3840x2160+${index * 5}+0 ${ToPath}/${Name}.jpg`;
+    const w = 1920 - index * 2;
+    const h = w * 1080 / 1920;
+    const cmdstring = `magick ${FilePath}/image.jpg -crop ${w}x${h}+${index * 1}+${index * 1} ${ToPath}/${Name}.jpg`;
     await exec(cmdstring);
   }
 }
 
 // 生成完图片后用ffmpeg生成视频
 async function megreImage(FilePath, ToPath) {
-  const cmdstring = 'ffmpeg -i ' + FilePath + '/%3d.jpg -an -r 10 -filter:v "setpts=1*PTS" ' + ToPath + '/1.mp4';
+  const cmdstring = 'ffmpeg -i ' + FilePath + '/%3d.jpg ' + ToPath + '/1.mp4';
+  //const cmdstring = 'ffmpeg -i ' + FilePath + '/%3d.jpg -an -r 30 -filter:v "setpts=1*PTS" ' + ToPath + '/1.mp4';
   await exec(cmdstring);
 }
 
