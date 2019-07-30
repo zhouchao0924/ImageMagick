@@ -64,6 +64,10 @@ async function megreImage(FilePath, ToPath) {
 
 // 创建文件夹目录
 async function CreateSolutiondir(SolutionId, Room) {
+  const RootPath = path.join(__dirname, 'ImageSpace');
+  if (!fs.existsSync(RootPath)) {
+    fs.mkdirSync(RootPath);
+  }
   const SolutionDirPath = path.join(__dirname, `ImageSpace/${SolutionId}`);
   // 按空间创建文件夹
   for (let index = 0; index < Room.length; index += 1) {
