@@ -102,7 +102,7 @@ async function ImagemagickInit(SolutionId, Room) {
     const SolutionRoomDirPath = path.join(SolutionDirPath, `${Room[index].roomId}`);
     const SolutionImageDirPath = path.join(SolutionRoomDirPath, 'image');
     const SolutionVideoMp4DirPath = path.join(SolutionRoomDirPath, 'video');
-    const cmdstring = `magick ${SolutionRoomDirPath}/image.png magick ${SolutionRoomDirPath}/image.jpg`;
+    const cmdstring = `magick ${SolutionRoomDirPath}/image.png ${SolutionRoomDirPath}/image.jpg`;
     await exec(cmdstring);
     await getimagesize(`${SolutionRoomDirPath}/image.jpg`, SolutionImageDirPath, SolutionVideoMp4DirPath);
   }
