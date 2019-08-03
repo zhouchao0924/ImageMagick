@@ -65,9 +65,14 @@ async function magickdrawnear(FilePath, ToPath, w, h) {
 
 // 生成完图片后用ffmpeg生成视频
 async function megreImage(FilePath, ToPath) {
-  const cmdstring = 'ffmpeg -i ' + FilePath + '/%3d.jpg ' + ToPath + '/1.mp4';
-  //const cmdstring = 'ffmpeg -i ' + FilePath + '/%3d.jpg -an -r 30 -filter:v "setpts=1*PTS" ' + ToPath + '/1.mp4';
+  const cmdstring = `ffmpeg -i ${FilePath}/%3d.jpg ${ToPath}/1.mp4`;
   await exec(cmdstring);
+  const cmdstring1 = `ffmpeg -i ${ToPath}/1.mp4 -vf fade=in:0:30 ${ToPath}/2.mp4`;
+  await exec(cmdstring1);
+  const cmdstring2 = `ffmpeg -i ${ToPath}/2.mp4 -vf fade=out:70:30 ${ToPath}/3.mp4`;
+  await exec(cmdstring2);
+  const cmdstring3 = `ffmpeg -i ${ToPath}/3.mp4 -vcodec copy -acodec copy -vbsf h264_mp4toannexb ${ToPath}/2.ts`;
+  await exec(cmdstring3);
 }
 
 // 获取图片尺寸大小
@@ -102,15 +107,13 @@ async function ImagemagickInit(SolutionId, Room) {
     const SolutionRoomDirPath = path.join(SolutionDirPath, `${Room[index].roomId}`);
     const SolutionImageDirPath = path.join(SolutionRoomDirPath, 'image');
     const SolutionVideoMp4DirPath = path.join(SolutionRoomDirPath, 'video');
-    const cmdstring = `magick ${SolutionRoomDirPath}/image.png ${SolutionRoomDirPath}/image.jpg`;
-    await exec(cmdstring);
     await getimagesize(`${SolutionRoomDirPath}/image.jpg`, SolutionImageDirPath, SolutionVideoMp4DirPath);
   }
 }
 
 // 循环多线程下载
 function DownLoadImage(SolutionId, FilePath, Room, index) {
-  const stream = fs.createWriteStream(path.join(FilePath, 'image.png'));
+  const stream = fs.createWriteStream(path.join(FilePath, 'image.jpg'));
   request(`${Room[index].imageUrlList[0]}!original`).pipe(stream).on('close', () => {
     console.log('文件下载完毕');
     HasDownLoadNum += 1;
@@ -180,67 +183,17 @@ const requ = http.request(options, (res) => {
     //   }
     // }
     const obj = {
-      "success": true,
-      "msg": null,
-      "data": {
-        "solutionId": 49119,
-        "images": [
+      'success': true,
+      'msg': null,
+      'data': {
+        'solutionId': 49119,
+        'images': [
           {
-            "roomId": 11763,
-            "roomName": "客厅",
-            "usageId": 1,
-            "imageUrlList": [
-              "https://ihome-test.oss-cn-shanghai.aliyuncs.com/623845e0a72549868702ec8778566254e1a9b47beaae94a0546f15ed04e4ca72.png",
-              "https://ihome-test.oss-cn-shanghai.aliyuncs.com/a6f2bb749ad0b4bffdf7d95bfd822bd7bd2e4b028faa73b2e60586a6f705b69c.png"
-            ]
-          },
-          {
-            "roomId": 11764,
-            "roomName": "餐厅",
-            "usageId": 6,
-            "imageUrlList": [
-              "https://ihome-test.oss-cn-shanghai.aliyuncs.com/843de75b8ec646318871cba871a294fa59ea2afe9938717c715fd7e55a78f585.png"
-            ]
-          },
-          {
-            "roomId": 11765,
-            "roomName": "主卧",
-            "usageId": 2,
-            "imageUrlList": [
-              "https://ihome-test.oss-cn-shanghai.aliyuncs.com/b0c91da1960f6f7206a5a3ee4008e083894354e27dae758c4dc8781737eb9ffa.png"
-            ]
-          },
-          {
-            "roomId": 11766,
-            "roomName": "次卧",
-            "usageId": 3,
-            "imageUrlList": [
-              "https://ihome-test.oss-cn-shanghai.aliyuncs.com/468142b9a4312b7d065ca36ed43a442b304809e053a47db901bebca3beafb9ea.png"
-            ]
-          },
-          {
-            "roomId": 11768,
-            "roomName": "厨房",
-            "usageId": 8,
-            "imageUrlList": [
-              "https://ihome-test.oss-cn-shanghai.aliyuncs.com/73c879e21c4600fe86b90b90782c9b2eb564be5f0b2982a5e751f5e169eadac1.png"
-            ]
-          },
-          {
-            "roomId": 11769,
-            "roomName": "主卫",
-            "usageId": 18,
-            "imageUrlList": [
-              "https://ihome-test.oss-cn-shanghai.aliyuncs.com/440289aea7e27e407c6b4483e56888d53e25b50a16045321e355a046776f46d9.png"
-            ]
-          },
-          {
-            "roomId": 11771,
-            "roomName": "生活阳台-4",
-            "usageId": 10,
-            "imageUrlList": [
-              "https://ihome-test.oss-cn-shanghai.aliyuncs.com/80745c70da211a2601c651e97654293ce7481451ebb65c6ee2aef9d9b3362853.png",
-              "https://ihome-test.oss-cn-shanghai.aliyuncs.com/d57e5ec1b4bde0678e1ae8f3bd83aa17e8e61fe38d89e81e1e012475974ebfe6.png"
+            'roomId': 11763,
+            'roomName': '客厅',
+            'usageId': 1,
+            'imageUrlList': [
+              'https://img15.ihomefnt.com/8781bab718cbee919584a0db4aabc1f1501ed3da29ca8fa50d8f0998263638a6.jpg'
             ]
           }
         ]
