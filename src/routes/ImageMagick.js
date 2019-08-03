@@ -68,13 +68,13 @@ async function magickdrawnear(FilePath, ToPath, w, h) {
   }
 }
 
-// 拉近效果
+// 拉远效果
 async function magickdrawfar(FilePath, ToPath, w, h) {
   for (let index = 0; index < 150; index += 1) {
     const Name = intToString(index, 3);
     const ch = h - (149 - index) * 2;
     const cw = ch / 2;
-    const cmdstring = `magick ${FilePath} -crop ${cw}x${ch}+${w / 2 - h / 4 - (149 - index) * 1}-${(149 - index) * 1} ${ToPath}/${Name}.jpg`;
+    const cmdstring = `magick ${FilePath} -crop ${cw}x${ch}+${w / 2 - h / 4 - (149 - index) * 1}+${(149 - index) * 1} -resize ${h / 2}x${h} ${ToPath}/${Name}.jpg`;
     await exec(cmdstring);
   }
 }
@@ -114,7 +114,7 @@ async function MoreMagic(FilePath, SolutionImageDirPath) {
     near = false;
     far = true;
   } else if (far) {
-    await magickdrawfar(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh);// 拉近效果4:3
+    await magickdrawfar(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh);// 拉远效果4:3
     translation = true;
     near = false;
     far = false;
