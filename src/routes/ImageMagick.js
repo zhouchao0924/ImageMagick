@@ -16,6 +16,8 @@ const http = require('http');
 let CurrentImageSizeW;
 let CurrentImageSizeh;
 let HasDownLoadNum;
+let HasTsNum;
+let tspath;
 
 // 执行cmd命令
 async function exec(cmd) {
@@ -63,20 +65,31 @@ async function magickdrawnear(FilePath, ToPath, w, h) {
   }
 }
 
+async function concatTS(SolutionId, SolutionDirPath) {
+  const RootPath = path.join(__dirname, 'ImageSpace');
+  const cmdstring = `ffmpeg -i "concat:${tspath}${RootPath}/over.ts" -acodec copy -vcodec copy -absf aac_adtstoasc ${SolutionDirPath}/${SolutionId}.mp4`;
+  await exec(cmdstring);
+}
+
 // 生成完图片后用ffmpeg生成视频
-async function megreImage(FilePath, ToPath) {
+async function megreImage(FilePath, ToPath, TsDirPath, Mp3DirPath, Roomid, SolutionId, SolutionDirPath) {
   const cmdstring = `ffmpeg -i ${FilePath}/%3d.jpg ${ToPath}/1.mp4`;
   await exec(cmdstring);
-  const cmdstring1 = `ffmpeg -i ${ToPath}/1.mp4 -vf fade=in:0:30 ${ToPath}/2.mp4`;
+  const cmdstring1 = `ffmpeg -i ${ToPath}/1.mp4 -vf fade=in:0:20 ${ToPath}/2.mp4`;
   await exec(cmdstring1);
-  const cmdstring2 = `ffmpeg -i ${ToPath}/2.mp4 -vf fade=out:70:30 ${ToPath}/3.mp4`;
+  const cmdstring2 = `ffmpeg -i ${ToPath}/2.mp4 -vf fade=out:80:20 ${ToPath}/3.mp4`;
   await exec(cmdstring2);
-  const cmdstring3 = `ffmpeg -i ${ToPath}/3.mp4 -vcodec copy -acodec copy -vbsf h264_mp4toannexb ${ToPath}/2.ts`;
+  const cmdstring3 = `ffmpeg -i ${ToPath}/3.mp4 -vcodec copy -acodec copy -vbsf h264_mp4toannexb ${TsDirPath}/${Roomid}.ts`;
   await exec(cmdstring3);
+  tspath = `${tspath}${TsDirPath}/${Roomid}.ts|`;
+  HasTsNum += 1;
+  if (HasTsNum === HasDownLoadNum) {
+    await concatTS(SolutionId, SolutionDirPath);
+  }
 }
 
 // 获取图片尺寸大小
-async function getimagesize(FilePath, SolutionImageDirPath, SolutionVideoMp4DirPath) {
+async function getimagesize(FilePath, SolutionImageDirPath, SolutionVideoMp4DirPath, TsDirPath, Mp3DirPath, Roomid, SolutionId, SolutionDirPath) {
   const cmdstring = `magick identify -format "%wx%h" ${FilePath}`;
   await exec(cmdstring);
   if (CurrentImageSizeW === 2560 && CurrentImageSizeh === 1440) {
@@ -97,22 +110,22 @@ async function getimagesize(FilePath, SolutionImageDirPath, SolutionVideoMp4DirP
   if (CurrentImageSizeW === 1620 && CurrentImageSizeh === 2160) {
     await magickdrawnear(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh);// 4k拉近效果3:4
   }
-  await megreImage(SolutionImageDirPath, SolutionVideoMp4DirPath);
+  await megreImage(SolutionImageDirPath, SolutionVideoMp4DirPath, TsDirPath, Mp3DirPath, Roomid, SolutionId, SolutionDirPath);
 }
 
-async function ImagemagickInit(SolutionId, Room) {
+async function ImagemagickInit(SolutionId, Room, TsDirPath, Mp3DirPath) {
   const SolutionDirPath = path.join(__dirname, `ImageSpace/${SolutionId}`);
   // 按空间文件夹处理图片
   for (let index = 0; index < Room.length; index += 1) {
     const SolutionRoomDirPath = path.join(SolutionDirPath, `${Room[index].roomId}`);
     const SolutionImageDirPath = path.join(SolutionRoomDirPath, 'image');
     const SolutionVideoMp4DirPath = path.join(SolutionRoomDirPath, 'video');
-    await getimagesize(`${SolutionRoomDirPath}/image.jpg`, SolutionImageDirPath, SolutionVideoMp4DirPath);
+    await getimagesize(`${SolutionRoomDirPath}/image.jpg`, SolutionImageDirPath, SolutionVideoMp4DirPath, TsDirPath, Mp3DirPath, `${Room[index].roomId}`, SolutionId, SolutionDirPath);
   }
 }
 
 // 循环多线程下载
-function DownLoadImage(SolutionId, FilePath, Room, index) {
+function DownLoadImage(SolutionId, FilePath, Room, index, TsDirPath, Mp3DirPath) {
   const stream = fs.createWriteStream(path.join(FilePath, 'image.jpg'));
   request(`${Room[index].imageUrlList[0]}!original`).pipe(stream).on('close', () => {
     console.log('文件下载完毕');
@@ -126,7 +139,7 @@ function DownLoadImage(SolutionId, FilePath, Room, index) {
       fs.mkdirSync(SolutionVideoMp4DirPath);
     }
     if (HasDownLoadNum === Room.length) {
-      ImagemagickInit(SolutionId, Room);// 图片下载完成，开始处理图片
+      ImagemagickInit(SolutionId, Room, TsDirPath, Mp3DirPath);// 图片下载完成，开始处理图片
     }
   });
 }
@@ -155,7 +168,7 @@ function CreateSolutiondir(SolutionId, Room) {
     if (!fs.existsSync(SolutionVideoMp3DirPath)) {
       fs.mkdirSync(SolutionVideoMp3DirPath);
     }
-    DownLoadImage(SolutionId, SolutionRoomDirPath, Room, index);// 下载图片
+    DownLoadImage(SolutionId, SolutionRoomDirPath, Room, index, SolutionVideoTsDirPath, SolutionVideoMp3DirPath);// 下载图片
   }
 }
 
@@ -195,11 +208,20 @@ const requ = http.request(options, (res) => {
             'imageUrlList': [
               'https://img15.ihomefnt.com/8781bab718cbee919584a0db4aabc1f1501ed3da29ca8fa50d8f0998263638a6.jpg'
             ]
+          }, {
+            'roomId': 11764,
+            'roomName': '餐厅厅',
+            'usageId': 1,
+            'imageUrlList': [
+              'https://img15.ihomefnt.com/8781bab718cbee919584a0db4aabc1f1501ed3da29ca8fa50d8f0998263638a6.jpg'
+            ]
           }
         ]
       }
     }
     HasDownLoadNum = 0;
+    HasTsNum = 0;
+    tspath = '';
     CreateSolutiondir(obj.data.solutionId, obj.data.images);
   }).on('error', (e) => {
     console.log(`error:${e.message}`);
