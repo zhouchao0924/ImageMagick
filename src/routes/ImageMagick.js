@@ -185,10 +185,16 @@ async function concatTS(SolutionId, SolutionDirPath, time) {
 async function megreImage(FilePath, ToPath, TsDirPath, Mp3DirPath, Roomid, SolutionId, SolutionDirPath) {
   const cmdstring = `ffmpeg -i ${FilePath}/%3d.jpg ${ToPath}/1.mp4`;
   await exec(cmdstring);
-  const cmdstring1 = `ffmpeg -i ${ToPath}/1.mp4 -vf fade=in:0:20 ${ToPath}/2.mp4`;
-  await exec(cmdstring1);
-  const cmdstring2 = `ffmpeg -i ${ToPath}/2.mp4 -vf fade=out:130:20 ${ToPath}/3.mp4`;
-  await exec(cmdstring2);
+  if (HasTsNum === 0) {
+    const cmdstring2 = `ffmpeg -i ${ToPath}/1.mp4 -vf fade=out:130:20 ${ToPath}/3.mp4`;
+    await exec(cmdstring2);
+  } else {
+    const cmdstring1 = `ffmpeg -i ${ToPath}/1.mp4 -vf fade=in:0:20 ${ToPath}/2.mp4`;
+    await exec(cmdstring1);
+    const cmdstring2 = `ffmpeg -i ${ToPath}/2.mp4 -vf fade=out:130:20 ${ToPath}/3.mp4`;
+    await exec(cmdstring2);
+  }
+
   const cmdstring3 = `ffmpeg -i ${ToPath}/3.mp4 -vcodec copy -acodec copy -vbsf h264_mp4toannexb ${TsDirPath}/${Roomid}.ts`;
   await exec(cmdstring3);
   tspath = `${tspath}${TsDirPath}/${Roomid}.ts|`;
