@@ -337,6 +337,5 @@ function Init() {
     }
   }, 10000);
 }
-//Init();
-UploadMP4('D:/ImageMagick/src/routes/ImageSpace/Music.mp3');
+Init();
 module.exports = router;
