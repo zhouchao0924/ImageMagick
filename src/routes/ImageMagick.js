@@ -21,6 +21,7 @@ let tspath;
 let translation;
 let near;
 let far;
+let IsMaking;
 
 // 执行cmd命令
 async function exec(cmd) {
@@ -79,10 +80,19 @@ async function magickdrawfar(FilePath, ToPath, w, h) {
   }
 }
 
-async function concatTS(SolutionId, SolutionDirPath) {
+async function AddMusic(time, RootPath, SolutionDirPath, SolutionId) {
+  const cmdstring = `ffmpeg -i ${RootPath}/Music.mp3 -ss 00:00:25 -t 00:00:${time} -acodec copy ${SolutionDirPath}/mp3/${SolutionId}.mp3`;
+  await exec(cmdstring);
+  const cmdstring1 = `ffmpeg -i ${SolutionDirPath}/${SolutionId}.mp4 -i ${SolutionDirPath}/mp3/${SolutionId}.mp3 -c:v copy -c:a aac -strict experimental ${SolutionId}-output.mp4`;
+  await exec(cmdstring1);
+}
+
+// 连接各个TS文件
+async function concatTS(SolutionId, SolutionDirPath, time) {
   const RootPath = path.join(__dirname, 'ImageSpace');
   const cmdstring = `ffmpeg -i "concat:${tspath}${RootPath}/over.ts" -acodec copy -vcodec copy -absf aac_adtstoasc ${SolutionDirPath}/${SolutionId}.mp4`;
   await exec(cmdstring);
+  AddMusic(time, RootPath, SolutionDirPath, SolutionId);
 }
 
 // 生成完图片后用ffmpeg生成视频
@@ -98,7 +108,7 @@ async function megreImage(FilePath, ToPath, TsDirPath, Mp3DirPath, Roomid, Solut
   tspath = `${tspath}${TsDirPath}/${Roomid}.ts|`;
   HasTsNum += 1;
   if (HasTsNum === HasDownLoadNum) {
-    await concatTS(SolutionId, SolutionDirPath);
+    await concatTS(SolutionId, SolutionDirPath, HasTsNum * 6 + 3);
   }
 }
 
@@ -188,93 +198,46 @@ function CreateSolutiondir(SolutionId, Room) {
   }
 }
 
-const prams = JSON.stringify({ ip: '192.168.1.1' });
-
-const options = {
-  host: 'irayproxy.sit.ihomefnt.org',
-  port: '80',
-  method: 'POST',
-  path: '/popVideoJob',
-  headers: {
-    'Content-Type': 'application/json'
-  }
-};
-
-let body = '';
-const requ = http.request(options, (res) => {
-  res.on('data', (data) => {
-    body += data;
-  }).on('end', () => {
-    // const obj = JSON.parse(body);
-    // if (obj.success) {
-    //   if (obj.data) {
-    //     CreateSolutiondir(obj.data.solutionId, obj.data.images);
-    //   }
-    // }
-    const obj = {
-      'success': true,
-      'msg': null,
-      'data': {
-        'solutionId': 49119,
-        'images': [
-          {
-            'roomId': 11763,
-            'roomName': '客厅',
-            'usageId': 1,
-            'imageUrlList': [
-              'https://img15.ihomefnt.com/4e7622878397110493e29c107ad0ea0bffc5b03fbc1b6896cd94431517c5edf3.jpg'
-            ]
-          }, {
-            'roomId': 11764,
-            'roomName': '餐厅',
-            'usageId': 1,
-            'imageUrlList': [
-              'https://img15.ihomefnt.com/22e73ef620a12f978259eb482d57a5aed63672da84de0e9450c6527ef254f463.jpg'
-            ]
-          }, {
-            'roomId': 11765,
-            'roomName': '儿童房',
-            'usageId': 1,
-            'imageUrlList': [
-              'https://img15.ihomefnt.com/f1f8c1cf93b0d506e0fefc83e469b0462be082604a6450421bd1ceed13a5af5f.jpg'
-            ]
-          }, {
-            'roomId': 11766,
-            'roomName': '休闲阳台',
-            'usageId': 1,
-            'imageUrlList': [
-              'https://img15.ihomefnt.com/6f1ce4ee8ff700598ef718d86319bfb7d0f856d23d4ad23df904467161a60c00.jpg'
-            ]
-          }, {
-            'roomId': 11767,
-            'roomName': '主卧',
-            'usageId': 1,
-            'imageUrlList': [
-              'https://img15.ihomefnt.com/ca047a385fae574c1839fcf1b530ff76e388878ce9f1204f77f13383807c8b91.jpg'
-            ]
-          }, {
-            'roomId': 11768,
-            'roomName': '次卧',
-            'usageId': 1,
-            'imageUrlList': [
-              'https://img15.ihomefnt.com/4b39a7d18b1174cf54c72579eb0b426d180268c77078a0687349552511dc405d.jpg'
-            ]
+function Init() {
+  IsMaking = false;
+  setInterval(() => {
+    if (!IsMaking) {
+      const prams = JSON.stringify({ ip: '192.168.1.1' });
+      const options = {
+        host: 'irayproxy.sit.ihomefnt.org',
+        port: '80',
+        method: 'POST',
+        path: '/popVideoJob',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      };
+      let body = '';
+      const req = http.request(options, (res) => {
+        res.on('data', (data) => {
+          body += data;
+        }).on('end', () => {
+          const obj = JSON.parse(body);
+          if (obj.success) {
+            if (obj.data) {
+              HasDownLoadNum = 0;
+              HasTsNum = 0;
+              tspath = '';
+              translation = true;
+              near = false;
+              far = false;
+              CreateSolutiondir(obj.data.solutionId, obj.data.images);
+            }
           }
-        ]
-      }
+        }).on('error', (e) => {
+          console.log(`error:${e.message}`);
+        });
+      });
+      req.write(prams);
+      req.end();
     }
-    HasDownLoadNum = 0;
-    HasTsNum = 0;
-    tspath = '';
-    translation = true;
-    near = false;
-    far = false;
-    CreateSolutiondir(obj.data.solutionId, obj.data.images);
-  }).on('error', (e) => {
-    console.log(`error:${e.message}`);
-  });
-});
-requ.write(prams);
-requ.end();
+  }, 10000);
+}
+Init();
 
 module.exports = router;
