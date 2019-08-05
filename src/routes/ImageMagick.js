@@ -13,6 +13,8 @@ const request = require('request');
 
 const http = require('http');
 
+const FormData = require('form-data');
+
 let CurrentImageSizeW;
 let CurrentImageSizeh;
 let HasDownLoadNum;
@@ -45,6 +47,28 @@ function intToString(num, n) {
     len += 1;
   }
   return num;
+}
+
+// 上传视频
+function UploadMP4(FilePath) {
+  let sbody = '';
+  const upload = request.post('https://unify-file.ihomefnt.com/unifyfile/file/drGeneralUpload');
+  upload.setHeader('content-type', 'multipart/form-data');
+
+  const form = upload.form();
+  form.append('file', fs.createReadStream(`${FilePath}`));
+
+  upload.on('data', (data) => {
+    sbody += data;
+  }).on('end', () => {
+    const obj = JSON.parse(sbody);
+    if (obj.success) {
+      
+    }
+    console.log(obj);
+  }).on('error', (e) => {
+    console.log(`error:${e.message}`);
+  });
 }
 
 // 根据获取的参数循环执行cmd
@@ -80,11 +104,15 @@ async function magickdrawfar(FilePath, ToPath, w, h) {
   }
 }
 
+// 添加音乐和水印
 async function AddMusic(time, RootPath, SolutionDirPath, SolutionId) {
   const cmdstring = `ffmpeg -i ${RootPath}/Music.mp3 -ss 00:00:25 -t 00:00:${time} -acodec copy ${SolutionDirPath}/mp3/${SolutionId}.mp3`;
   await exec(cmdstring);
-  const cmdstring1 = `ffmpeg -i ${SolutionDirPath}/${SolutionId}.mp4 -i ${SolutionDirPath}/mp3/${SolutionId}.mp3 -c:v copy -c:a aac -strict experimental ${SolutionId}-output.mp4`;
+  const cmdstring1 = `ffmpeg -i ${SolutionDirPath}/${SolutionId}.mp4 -i ${SolutionDirPath}/mp3/${SolutionId}.mp3 -c:v copy -c:a aac -strict experimental ${SolutionDirPath}/${SolutionId}-output.mp4`;
   await exec(cmdstring1);
+  // const cmdstring2 = `ffmpeg -i ${SolutionDirPath}/${SolutionId}-output.mp4 -vf "movie=000.png[watermark];[in][watermark] overlay=main_w-overlay_w-10:main_h-overlay_h-10[out]" ${SolutionDirPath}/${SolutionId}-v.mp4`;
+  // await exec(cmdstring2);
+  UploadMP4(`${SolutionDirPath}/${SolutionId}-output.mp4`);
 }
 
 // 连接各个TS文件
@@ -112,6 +140,7 @@ async function megreImage(FilePath, ToPath, TsDirPath, Mp3DirPath, Roomid, Solut
   }
 }
 
+// 更多效果
 async function MoreMagic(FilePath, SolutionImageDirPath) {
   if (translation) {
     await magicktranslation(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh);// 平移效果16:9
@@ -139,6 +168,7 @@ async function getimagesize(FilePath, SolutionImageDirPath, SolutionVideoMp4DirP
   await megreImage(SolutionImageDirPath, SolutionVideoMp4DirPath, TsDirPath, Mp3DirPath, Roomid, SolutionId, SolutionDirPath);
 }
 
+// 开始处理任务
 async function ImagemagickInit(SolutionId, Room, TsDirPath, Mp3DirPath) {
   const SolutionDirPath = path.join(__dirname, `ImageSpace/${SolutionId}`);
   // 按空间文件夹处理图片
@@ -238,6 +268,6 @@ function Init() {
     }
   }, 10000);
 }
-Init();
-
+//Init();
+UploadMP4('D:/ImageMagick/src/routes/ImageSpace/Music.mp3');
 module.exports = router;
