@@ -13,8 +13,6 @@ const request = require('request');
 
 const http = require('http');
 
-const FormData = require('form-data');
-
 let CurrentImageSizeW;
 let CurrentImageSizeh;
 let HasDownLoadNum;
@@ -24,6 +22,7 @@ let translation;
 let near;
 let far;
 let IsMaking;
+let delpath;
 
 // 执行cmd命令
 async function exec(cmd) {
@@ -49,12 +48,70 @@ function intToString(num, n) {
   return num;
 }
 
+// 删除文件夹
+function deleteFolder(solutionpath) {
+  let files = [];
+  if (fs.existsSync(solutionpath)) {
+    files = fs.readdirSync(solutionpath);
+    files.forEach((file) => {
+      const curPath = `${solutionpath}/${file}`;
+      if (fs.statSync(curPath).isDirectory()) { // recurse
+        deleteFolder(curPath);
+      } else { // delete file
+        fs.unlinkSync(curPath);
+      }
+    });
+    fs.rmdirSync(solutionpath);
+  }
+}
+
+// 完成和失败都要做的错误处理
+function complete() {
+  deleteFolder(delpath);
+  IsMaking = false;
+}
+
+// 上传完成后，给后台的回执
+function callback(SolutionId, url) {
+  const requestData = JSON.stringify({
+    message: '视频制作完成',
+    solutionId: SolutionId,
+    success: true,
+    videoUrl: url
+  });
+  const options = {
+    host: 'irayproxy.sit.ihomefnt.org',
+    port: '80',
+    method: 'POST',
+    path: '/collectVideoResult',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  };
+  let abody = '';
+  const req = http.request(options, (res) => {
+    res.on('data', (data) => {
+      abody += data;
+    }).on('end', () => {
+      const dataobj = JSON.parse(abody);
+      if (dataobj.success) {
+        complete();
+      } else {
+        complete();
+      }
+    }).on('error', () => {
+      complete();
+    });
+  });
+  req.write(requestData);
+  req.end();
+}
+
 // 上传视频
-function UploadMP4(FilePath) {
+function UploadMP4(FilePath, SolutionId) {
   let sbody = '';
   const upload = request.post('https://unify-file.ihomefnt.com/unifyfile/file/drGeneralUpload');
   upload.setHeader('content-type', 'multipart/form-data');
-
   const form = upload.form();
   form.append('file', fs.createReadStream(`${FilePath}`));
 
@@ -63,11 +120,12 @@ function UploadMP4(FilePath) {
   }).on('end', () => {
     const obj = JSON.parse(sbody);
     if (obj.success) {
-      
+      callback(SolutionId, obj.data);
+    } else {
+      complete();
     }
-    console.log(obj);
-  }).on('error', (e) => {
-    console.log(`error:${e.message}`);
+  }).on('error', () => {
+    complete();
   });
 }
 
@@ -112,7 +170,7 @@ async function AddMusic(time, RootPath, SolutionDirPath, SolutionId) {
   await exec(cmdstring1);
   // const cmdstring2 = `ffmpeg -i ${SolutionDirPath}/${SolutionId}-output.mp4 -vf "movie=000.png[watermark];[in][watermark] overlay=main_w-overlay_w-10:main_h-overlay_h-10[out]" ${SolutionDirPath}/${SolutionId}-v.mp4`;
   // await exec(cmdstring2);
-  UploadMP4(`${SolutionDirPath}/${SolutionId}-output.mp4`);
+  UploadMP4(`${SolutionDirPath}/${SolutionId}-output.mp4`, SolutionId);
 }
 
 // 连接各个TS文件
@@ -197,6 +255,8 @@ function DownLoadImage(SolutionId, FilePath, Room, index, TsDirPath, Mp3DirPath)
     if (HasDownLoadNum === Room.length) {
       ImagemagickInit(SolutionId, Room, TsDirPath, Mp3DirPath);// 图片下载完成，开始处理图片
     }
+  }).on('error', () => {
+    complete();
   });
 }
 
@@ -207,6 +267,7 @@ function CreateSolutiondir(SolutionId, Room) {
     fs.mkdirSync(RootPath);
   }
   const SolutionDirPath = path.join(__dirname, `ImageSpace/${SolutionId}`);
+  delpath = SolutionDirPath;
   // 按空间创建文件夹
   for (let index = 0; index < Room.length; index += 1) {
     const SolutionRoomDirPath = path.join(SolutionDirPath, `${Room[index].roomId}`);
@@ -258,9 +319,11 @@ function Init() {
               far = false;
               CreateSolutiondir(obj.data.solutionId, obj.data.images);
             }
+          } else {
+            complete();
           }
-        }).on('error', (e) => {
-          console.log(`error:${e.message}`);
+        }).on('error', () => {
+          complete();
         });
       });
       req.write(prams);
