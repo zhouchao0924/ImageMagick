@@ -1,9 +1,8 @@
-.DS_Store
+﻿.DS_Store
 dist/*
 coverage
 node_modules/
 thumbs.db
 !.gitkeep
 .idea
-src/routes/ImageSpace/54781/餐厅/image.jpg
-src/routes/ImageSpace/
+.vscode

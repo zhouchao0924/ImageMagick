@@ -13,6 +13,12 @@ const request = require('request');
 
 const http = require('http');
 
+const agileLog = require('agile-log');
+
+const os = require('os');
+
+const log = agileLog.getLogger('app');
+
 let CurrentImageSizeW;
 let CurrentImageSizeh;
 let HasDownLoadNum;
@@ -23,6 +29,7 @@ let near;
 let far;
 let IsMaking;
 let delpath;
+let ipgetIPAdress;
 
 // 执行cmd命令
 async function exec(cmd) {
@@ -95,6 +102,7 @@ function callback(SolutionId, url) {
     }).on('end', () => {
       const dataobj = JSON.parse(abody);
       if (dataobj.success) {
+        log.info(`${SolutionId}任务结束,上传回执完成`);
         complete();
       } else {
         complete();
@@ -120,6 +128,7 @@ function UploadMP4(FilePath, SolutionId) {
   }).on('end', () => {
     const obj = JSON.parse(sbody);
     if (obj.success) {
+      log.info(`${SolutionId}任务视频上传完成`);
       callback(SolutionId, obj.data);
     } else {
       complete();
@@ -168,9 +177,9 @@ async function AddMusic(time, RootPath, SolutionDirPath, SolutionId) {
   await exec(cmdstring);
   const cmdstring1 = `ffmpeg -i ${SolutionDirPath}/${SolutionId}.mp4 -i ${SolutionDirPath}/mp3/${SolutionId}.mp3 -c:v copy -c:a aac -strict experimental ${SolutionDirPath}/${SolutionId}-output.mp4`;
   await exec(cmdstring1);
-  // const cmdstring2 = `ffmpeg -i ${SolutionDirPath}/${SolutionId}-output.mp4 -vf "movie=000.png[watermark];[in][watermark] overlay=main_w-overlay_w-10:main_h-overlay_h-10[out]" ${SolutionDirPath}/${SolutionId}-v.mp4`;
-  // await exec(cmdstring2);
-  UploadMP4(`${SolutionDirPath}/${SolutionId}-output.mp4`, SolutionId);
+  const cmdstring2 = `ffmpeg -i ${SolutionDirPath}/${SolutionId}-output.mp4 -ignore_loop 0 -i ${RootPath}/logo.gif -filter_complex "[0:v][1:v]overlay=10:10:shortest=1" ${SolutionDirPath}/${SolutionId}-v.mp4`;
+  await exec(cmdstring2);
+  UploadMP4(`${SolutionDirPath}/${SolutionId}-v.mp4`, SolutionId);
 }
 
 // 连接各个TS文件
@@ -248,6 +257,7 @@ async function ImagemagickInit(SolutionId, Room, TsDirPath, Mp3DirPath) {
 function DownLoadImage(SolutionId, FilePath, Room, index, TsDirPath, Mp3DirPath) {
   const stream = fs.createWriteStream(path.join(FilePath, 'image.jpg'));
   request(`${Room[index].imageUrlList[0]}!original`).pipe(stream).on('close', () => {
+    log.info(`${SolutionId}${FilePath}图片下载完成`);
     HasDownLoadNum += 1;
     const SolutionImageDirPath = path.join(FilePath, 'image');
     const SolutionVideoMp4DirPath = path.join(FilePath, 'video');
@@ -267,6 +277,7 @@ function DownLoadImage(SolutionId, FilePath, Room, index, TsDirPath, Mp3DirPath)
 
 // 创建文件夹目录
 function CreateSolutiondir(SolutionId, Room) {
+  log.info(`${SolutionId}任务开始`);
   const RootPath = path.join(__dirname, 'ImageSpace');
   if (!fs.existsSync(RootPath)) {
     fs.mkdirSync(RootPath);
@@ -294,11 +305,28 @@ function CreateSolutiondir(SolutionId, Room) {
   }
 }
 
+// 获取IP地址
+function getIPAdress() {
+  const interfaces = os.networkInterfaces();
+  for (let devName in interfaces) { // eslint-disable-line
+    if (interfaces.hasOwnProperty(devName)) { // eslint-disable-line
+      const iface = interfaces[devName];
+      for (let i = 0; i < iface.length; i += 1) {
+        const alias = iface[i];
+        if (alias.family === 'IPv4' && alias.address !== '127.0.0.1' && !alias.internal) {
+          ipgetIPAdress = alias.address;
+        }
+      }
+    }
+  }
+}
+
 function Init() {
+  getIPAdress();
   IsMaking = false;
   setInterval(() => {
     if (!IsMaking) {
-      const prams = JSON.stringify({ ip: '192.168.1.1' });
+      const prams = JSON.stringify({ ip: `${ipgetIPAdress}` });
       const options = {
         host: 'irayproxy.sit.ihomefnt.org',
         port: '80',
@@ -335,7 +363,7 @@ function Init() {
       req.write(prams);
       req.end();
     }
-  }, 10000);
+  }, 30000);
 }
 
 Init();

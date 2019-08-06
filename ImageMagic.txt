@@ -15,4 +15,4 @@ ffmpeg -i "concat:1.ts|2.ts|3.ts|4.ts|5.ts|6.ts|7.ts|8.ts|over.ts" -acodec copy 
 
 合成：ffmpeg -i 54781.mp4 -i 1.mp3 -c:v copy -c:a aac -strict experimental output.mp4
 
-视频加水印：ffmpeg -i 54781.mp4 -vf "movie=000.png[watermark];[in][watermark] overlay=main_w-overlay_w-10:main_h-overlay_h-10[out] " output.mp4
+视频加水印：ffmpeg -i 1.mp4 -ignore_loop 0 -i logo.gif -filter_complex  "[0:v][1:v]overlay=10:10:shortest=1" out.mp4
