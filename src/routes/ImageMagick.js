@@ -68,7 +68,7 @@ function deleteFolder(solutionpath) {
 // 完成和失败都要做的错误处理
 function complete() {
   deleteFolder(delpath);
-  setTimeout(() => { IsMaking = false; }, 3000);
+  setTimeout(() => { IsMaking = false; }, 10000);
 }
 
 // 上传完成后，给后台的回执
@@ -182,7 +182,7 @@ async function concatTS(SolutionId, SolutionDirPath, time) {
 }
 
 // 生成完图片后用ffmpeg生成视频
-async function megreImage(FilePath, ToPath, TsDirPath, Mp3DirPath, Roomid, SolutionId, SolutionDirPath) {
+async function megreImage(FilePath, ToPath, TsDirPath, Mp3DirPath, Roomid, SolutionId, SolutionDirPath) { // eslint-disable-line
   const cmdstring = `ffmpeg -i ${FilePath}/%3d.jpg ${ToPath}/1.mp4`;
   await exec(cmdstring);
   if (HasTsNum === 0) {
@@ -207,17 +207,17 @@ async function megreImage(FilePath, ToPath, TsDirPath, Mp3DirPath, Roomid, Solut
 // 更多效果
 async function MoreMagic(FilePath, SolutionImageDirPath) {
   if (translation) {
-    await magicktranslation(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh);// 平移效果16:9
+    await magicktranslation(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh);// eslint-disable-line
     translation = false;
     near = true;
     far = false;
   } else if (near) {
-    await magickdrawnear(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh);// 拉近效果4:3
+    await magickdrawnear(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh); // eslint-disable-line
     translation = false;
     near = false;
     far = true;
   } else if (far) {
-    await magickdrawfar(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh);// 拉远效果4:3
+    await magickdrawfar(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh); // eslint-disable-line
     translation = true;
     near = false;
     far = false;
@@ -225,11 +225,11 @@ async function MoreMagic(FilePath, SolutionImageDirPath) {
 }
 
 // 获取图片尺寸大小
-async function getimagesize(FilePath, SolutionImageDirPath, SolutionVideoMp4DirPath, TsDirPath, Mp3DirPath, Roomid, SolutionId, SolutionDirPath) {
+async function getimagesize(FilePath, SolutionImageDirPath, SolutionVideoMp4DirPath, TsDirPath, Mp3DirPath, Roomid, SolutionId, SolutionDirPath) { // eslint-disable-line
   const cmdstring = `magick identify -format "%wx%h" ${FilePath}`;
   await exec(cmdstring);
   await MoreMagic(FilePath, SolutionImageDirPath);
-  await megreImage(SolutionImageDirPath, SolutionVideoMp4DirPath, TsDirPath, Mp3DirPath, Roomid, SolutionId, SolutionDirPath);
+  await megreImage(SolutionImageDirPath, SolutionVideoMp4DirPath, TsDirPath, Mp3DirPath, Roomid, SolutionId, SolutionDirPath);  // eslint-disable-line
 }
 
 // 开始处理任务
@@ -291,7 +291,7 @@ function CreateSolutiondir(SolutionId, Room) {
     if (!fs.existsSync(SolutionVideoMp3DirPath)) {
       fs.mkdirSync(SolutionVideoMp3DirPath);
     }
-    DownLoadImage(SolutionId, SolutionRoomDirPath, Room, index, SolutionVideoTsDirPath, SolutionVideoMp3DirPath);// 下载图片
+    DownLoadImage(SolutionId, SolutionRoomDirPath, Room, index, SolutionVideoTsDirPath, SolutionVideoMp3DirPath); // eslint-disable-line
   }
 }
 
@@ -314,7 +314,53 @@ function Init() {
         res.on('data', (data) => {
           body += data;
         }).on('end', () => {
-          const obj = JSON.parse(body);
+          const objs = JSON.parse(body);
+          const obj = {
+            success: true,
+            msg: null,
+            data: {
+              solutionId: 49119,
+              images: [
+                {
+                  roomId: 11763,
+                  roomName: '客厅',
+                  usageId: 1,
+                  imageUrlList: [
+                    'https://img15.ihomefnt.com/4e7622878397110493e29c107ad0ea0bffc5b03fbc1b6896cd94431517c5edf3.jpg'
+                  ]
+                },
+                {
+                  roomId: 11764,
+                  roomName: '餐厅',
+                  usageId: 1,
+                  imageUrlList: [
+                    'https://img15.ihomefnt.com/22e73ef620a12f978259eb482d57a5aed63672da84de0e9450c6527ef254f463.jpg'
+                  ]
+                }, {
+                  roomId: 11765,
+                  roomName: '儿童',
+                  usageId: 1,
+                  imageUrlList: [
+                    'https://img15.ihomefnt.com/f1f8c1cf93b0d506e0fefc83e469b0462be082604a6450421bd1ceed13a5af5f.jpg'
+                  ]
+                }, {
+                  roomId: 11766,
+                  roomName: '休闲阳台',
+                  usageId: 1,
+                  imageUrlList: [
+                    'https://img15.ihomefnt.com/6f1ce4ee8ff700598ef718d86319bfb7d0f856d23d4ad23df904467161a60c00.jpg'
+                  ]
+                }, {
+                  roomId: 11767,
+                  roomName: '主卧',
+                  usageId: 1,
+                  imageUrlList: [
+                    'https://img15.ihomefnt.com/ca047a385fae574c1839fcf1b530ff76e388878ce9f1204f77f13383807c8b91.jpg'
+                  ]
+                }
+              ]
+            }
+          };
           if (obj.success) {
             if (obj.data) {
               HasDownLoadNum = 0;
@@ -338,60 +384,6 @@ function Init() {
     }
   }, 10000);
 }
-// Init();
-const images = {
-  success: true,
-  msg: null,
-  data: {
-    solutionId: 49119,
-    images: [
-      {
-        roomId: 11763,
-        roomName: '客厅',
-        usageId: 1,
-        imageUrlList: [
-          'https://img15.ihomefnt.com/4e7622878397110493e29c107ad0ea0bffc5b03fbc1b6896cd94431517c5edf3.jpg'
-        ]
-      },
-      {
-        roomId: 11764,
-        roomName: '餐厅',
-        usageId: 1,
-        imageUrlList: [
-          'https://img15.ihomefnt.com/22e73ef620a12f978259eb482d57a5aed63672da84de0e9450c6527ef254f463.jpg'
-        ]
-      }, {
-        roomId: 11765,
-        roomName: '儿童',
-        usageId: 1,
-        imageUrlList: [
-          'https://img15.ihomefnt.com/f1f8c1cf93b0d506e0fefc83e469b0462be082604a6450421bd1ceed13a5af5f.jpg'
-        ]
-      }, {
-        roomId: 11766,
-        roomName: '休闲阳台',
-        usageId: 1,
-        imageUrlList: [
-          'https://img15.ihomefnt.com/6f1ce4ee8ff700598ef718d86319bfb7d0f856d23d4ad23df904467161a60c00.jpg'
-        ]
-      }, {
-        roomId: 11767,
-        roomName: '主卧',
-        usageId: 1,
-        imageUrlList: [
-          'https://img15.ihomefnt.com/ca047a385fae574c1839fcf1b530ff76e388878ce9f1204f77f13383807c8b91.jpg'
-        ]
-      }
-    ]
-  }
-};
-
-HasDownLoadNum = 0;
-HasTsNum = 0;
-tspath = '';
-translation = true;
-near = false;
-far = false;
-CreateSolutiondir(images.data.solutionId, images.data.images);
+Init();
 
 module.exports = router;
