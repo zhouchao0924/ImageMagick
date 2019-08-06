@@ -248,7 +248,6 @@ async function ImagemagickInit(SolutionId, Room, TsDirPath, Mp3DirPath) {
 function DownLoadImage(SolutionId, FilePath, Room, index, TsDirPath, Mp3DirPath) {
   const stream = fs.createWriteStream(path.join(FilePath, 'image.jpg'));
   request(`${Room[index].imageUrlList[0]}!original`).pipe(stream).on('close', () => {
-    console.log('文件下载完毕');
     HasDownLoadNum += 1;
     const SolutionImageDirPath = path.join(FilePath, 'image');
     const SolutionVideoMp4DirPath = path.join(FilePath, 'video');
@@ -314,53 +313,7 @@ function Init() {
         res.on('data', (data) => {
           body += data;
         }).on('end', () => {
-          const objs = JSON.parse(body);
-          const obj = {
-            success: true,
-            msg: null,
-            data: {
-              solutionId: 49119,
-              images: [
-                {
-                  roomId: 11763,
-                  roomName: '客厅',
-                  usageId: 1,
-                  imageUrlList: [
-                    'https://img15.ihomefnt.com/4e7622878397110493e29c107ad0ea0bffc5b03fbc1b6896cd94431517c5edf3.jpg'
-                  ]
-                },
-                {
-                  roomId: 11764,
-                  roomName: '餐厅',
-                  usageId: 1,
-                  imageUrlList: [
-                    'https://img15.ihomefnt.com/22e73ef620a12f978259eb482d57a5aed63672da84de0e9450c6527ef254f463.jpg'
-                  ]
-                }, {
-                  roomId: 11765,
-                  roomName: '儿童',
-                  usageId: 1,
-                  imageUrlList: [
-                    'https://img15.ihomefnt.com/f1f8c1cf93b0d506e0fefc83e469b0462be082604a6450421bd1ceed13a5af5f.jpg'
-                  ]
-                }, {
-                  roomId: 11766,
-                  roomName: '休闲阳台',
-                  usageId: 1,
-                  imageUrlList: [
-                    'https://img15.ihomefnt.com/6f1ce4ee8ff700598ef718d86319bfb7d0f856d23d4ad23df904467161a60c00.jpg'
-                  ]
-                }, {
-                  roomId: 11767,
-                  roomName: '主卧',
-                  usageId: 1,
-                  imageUrlList: [
-                    'https://img15.ihomefnt.com/ca047a385fae574c1839fcf1b530ff76e388878ce9f1204f77f13383807c8b91.jpg'
-                  ]
-                }
-              ]
-            }
-          };
+          const obj = JSON.parse(body);
           if (obj.success) {
             if (obj.data) {
               HasDownLoadNum = 0;
@@ -384,6 +337,7 @@ function Init() {
     }
   }, 10000);
 }
+
 Init();
 
 module.exports = router;
