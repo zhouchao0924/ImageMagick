@@ -19,17 +19,23 @@ const os = require('os');
 
 const log = agileLog.getLogger('app');
 
+// const ffmpeg = '/usr/local/ffmpeg/ffmpeg';
+
+// const magick = '/usr/local/ImageMagick/bin/magick';
+
+const ffmpeg = 'ffmpeg';
+
+const magick = 'magick';
+
 let CurrentImageSizeW;
 let CurrentImageSizeh;
 let HasDownLoadNum;
 let HasTsNum;
 let tspath;
-let translation;
-let near;
-let far;
 let IsMaking;
 let delpath;
 let ipgetIPAdress;
+let CurrentjobId;
 
 // 执行cmd命令
 async function exec(cmd) {
@@ -75,7 +81,9 @@ function deleteFolder(solutionpath) {
 // 完成和失败都要做的错误处理
 function complete() {
   deleteFolder(delpath);
-  setTimeout(() => { IsMaking = false; }, 10000);
+  setTimeout(() => {
+    IsMaking = false;
+  }, 10000);
 }
 
 // 上传完成后，给后台的回执
@@ -83,6 +91,7 @@ function callback(SolutionId, url) {
   const requestData = JSON.stringify({
     message: '视频制作完成',
     solutionId: SolutionId,
+    jobId: CurrentjobId,
     success: true,
     videoUrl: url
   });
@@ -118,7 +127,7 @@ function callback(SolutionId, url) {
 // 上传视频
 function UploadMP4(FilePath, SolutionId) {
   let sbody = '';
-  const upload = request.post('https://unify-file.ihomefnt.com/unifyfile/file/drGeneralUpload');
+  const upload = request.post('http://192.168.1.76:11133/unifyfile/file/drGeneralUpload');
   upload.setHeader('content-type', 'multipart/form-data');
   const form = upload.form();
   form.append('file', fs.createReadStream(`${FilePath}`));
@@ -140,44 +149,81 @@ function UploadMP4(FilePath, SolutionId) {
 
 // 根据获取的参数循环执行cmd
 // 平移效果
-async function magicktranslation(FilePath, ToPath, w, h) {
-  for (let index = 0; index < 150; index += 1) {
-    const Name = intToString(index, 3);
-    const cw = h / 2;
-    const cmdstring = `magick ${FilePath} -crop ${cw}x${h}+${w / 2 - 375 + index * 5}+0 ${ToPath}/${Name}.jpg`;
-    await exec(cmdstring);
+async function magicktranslation(FilePath, ToPath, w, h, SolutionVideoMp4DirPath) {
+  if (CurrentImageSizeW === 2560 && CurrentImageSizeh === 1440) {
+    for (let index = 0; index < 200; index += 1) {
+      const Name = intToString(index, 3);
+      const cw = h / 2;
+      const cmdstring = `${magick} ${FilePath} -crop ${cw}x${h}+${w / 2 - 1160 + index * 8}+0 ${ToPath}/${Name}.jpg`;
+      await exec(cmdstring);
+    }
+    const cmdstring2 = `${ffmpeg} -i ${ToPath}/%3d.jpg -an -filter:v "setpts=0.6*PTS" ${SolutionVideoMp4DirPath}/1.mp4`;
+    await exec(cmdstring2);
+  } else if (CurrentImageSizeW === 1920 && CurrentImageSizeh === 1440) {
+    for (let index = 0; index < 200; index += 1) {
+      const Name = intToString(index, 3);
+      const cw = h / 2;
+      const cmdstring = `${magick} ${FilePath} -crop ${cw}x${h}+${w / 2 - 960 + index * 6}+0 ${ToPath}/${Name}.jpg`;
+      await exec(cmdstring);
+    }
+    const cmdstring2 = `${ffmpeg} -i ${ToPath}/%3d.jpg -an -filter:v "setpts=0.8*PTS" ${SolutionVideoMp4DirPath}/1.mp4`;
+    await exec(cmdstring2);
+  } else if (CurrentImageSizeW === 3840 && CurrentImageSizeh === 2160) {
+    for (let index = 0; index < 200; index += 1) {
+      const Name = intToString(index, 3);
+      const cw = h / 2;
+      const cmdstring = `${magick} ${FilePath} -crop ${cw}x${h}+${w / 2 - 1740 + index * 12}+0 ${ToPath}/${Name}.jpg`;
+      await exec(cmdstring);
+    }
+    const cmdstring2 = `${ffmpeg} -i ${ToPath}/%3d.jpg -an -filter:v "setpts=0.6*PTS" ${SolutionVideoMp4DirPath}/1.mp4`;
+    await exec(cmdstring2);
+  } else if (CurrentImageSizeW === 2880 && CurrentImageSizeh === 2160) {
+    for (let index = 0; index < 200; index += 1) {
+      const Name = intToString(index, 3);
+      const cw = h / 2;
+      const cmdstring = `${magick} ${FilePath} -crop ${cw}x${h}+${w / 2 - 1340 + index * 8}+0 ${ToPath}/${Name}.jpg`;
+      await exec(cmdstring);
+    }
+    const cmdstring2 = `${ffmpeg} -i ${ToPath}/%3d.jpg -an -filter:v "setpts=0.8*PTS" ${SolutionVideoMp4DirPath}/1.mp4`;
+    await exec(cmdstring2);
   }
 }
 
 // 拉近效果
 async function magickdrawnear(FilePath, ToPath, w, h) {
-  for (let index = 0; index < 150; index += 1) {
+  for (let index = 0; index < 100; index += 1) {
     const Name = intToString(index, 3);
-    const ch = h - index * 2;
+    const ch = h * (1 - index * 0.002);
     const cw = ch / 2;
-    const cmdstring = `magick ${FilePath} -crop ${cw}x${ch}+${w / 2 - h / 4 + index * 1}+${index * 1} ${ToPath}/${Name}.jpg`;
+    const cmdstring = `${magick} ${FilePath} -gravity center -extent ${cw}x${ch} ${ToPath}/${Name}.jpg`;
     await exec(cmdstring);
   }
 }
 
 // 拉远效果
 async function magickdrawfar(FilePath, ToPath, w, h) {
-  for (let index = 0; index < 150; index += 1) {
+  for (let index = 0; index < 100; index += 1) {
     const Name = intToString(index, 3);
-    const ch = h - (149 - index) * 2;
+    const ch = h * (1 - (100 - index) * 0.002);
     const cw = ch / 2;
-    const cmdstring = `magick ${FilePath} -crop ${cw}x${ch}+${w / 2 - h / 4 - (149 - index) * 1}+${(149 - index) * 1} -resize ${h / 2}x${h} ${ToPath}/${Name}.jpg`;
+    const cmdstring = `${magick} ${FilePath} -gravity center -extent ${cw}x${ch} -resize ${h / 2}x${h} ${ToPath}/${Name}.jpg`;
     await exec(cmdstring);
   }
 }
 
 // 添加音乐和水印
 async function AddMusic(time, RootPath, SolutionDirPath, SolutionId) {
-  const cmdstring = `ffmpeg -i ${RootPath}/Music.mp3 -ss 00:00:25 -t 00:00:${time} -acodec copy ${SolutionDirPath}/mp3/${SolutionId}.mp3`;
+  let alltime;
+  if (time >= 60) {
+    alltime = `00:01:${time - 60}`;
+  } else {
+    alltime = time;
+  }
+  const cmdstring = `${ffmpeg} -i ${RootPath}/Music.mp3 -ss 00:00:25 -t ${alltime} -acodec copy ${SolutionDirPath}/mp3/${SolutionId}.mp3`;
   await exec(cmdstring);
-  const cmdstring1 = `ffmpeg -i ${SolutionDirPath}/${SolutionId}.mp4 -i ${SolutionDirPath}/mp3/${SolutionId}.mp3 -c:v copy -c:a aac -strict experimental ${SolutionDirPath}/${SolutionId}-output.mp4`;
+  const cmdstring1 = `${ffmpeg} -i ${SolutionDirPath}/${SolutionId}.mp4 -i ${SolutionDirPath}/mp3/${SolutionId}.mp3 -c:v copy -c:a aac -strict experimental ${SolutionDirPath}/${SolutionId}-output.mp4`;
   await exec(cmdstring1);
-  const cmdstring2 = `ffmpeg -i ${SolutionDirPath}/${SolutionId}-output.mp4 -ignore_loop 0 -i ${RootPath}/logo.gif -filter_complex "[0:v][1:v]overlay=10:10:shortest=1" ${SolutionDirPath}/${SolutionId}-v.mp4`;
+  const cmdstring2 = `${ffmpeg} -i ${SolutionDirPath}/${SolutionId}-output.mp4 -ignore_loop 0 -i ${RootPath}/logo.gif -filter_complex "[0:v][1:v]overlay=10:10:shortest=1" ${SolutionDirPath}/${SolutionId}-v.mp4`;
   await exec(cmdstring2);
   UploadMP4(`${SolutionDirPath}/${SolutionId}-v.mp4`, SolutionId);
 }
@@ -185,26 +231,24 @@ async function AddMusic(time, RootPath, SolutionDirPath, SolutionId) {
 // 连接各个TS文件
 async function concatTS(SolutionId, SolutionDirPath, time) {
   const RootPath = path.join(__dirname, 'ImageSpace');
-  const cmdstring = `ffmpeg -i "concat:${tspath}${RootPath}/over.ts" -acodec copy -vcodec copy -absf aac_adtstoasc ${SolutionDirPath}/${SolutionId}.mp4`;
+  const cmdstring = `${ffmpeg} -i "concat:${tspath}${RootPath}/over.ts" -acodec copy -vcodec copy -absf aac_adtstoasc ${SolutionDirPath}/${SolutionId}.mp4`;
   await exec(cmdstring);
   AddMusic(time, RootPath, SolutionDirPath, SolutionId);
 }
 
 // 生成完图片后用ffmpeg生成视频
 async function megreImage(FilePath, ToPath, TsDirPath, Mp3DirPath, Roomid, SolutionId, SolutionDirPath) { // eslint-disable-line
-  const cmdstring = `ffmpeg -i ${FilePath}/%3d.jpg ${ToPath}/1.mp4`;
-  await exec(cmdstring);
   if (HasTsNum === 0) {
-    const cmdstring2 = `ffmpeg -i ${ToPath}/1.mp4 -vf fade=out:130:20 ${ToPath}/3.mp4`;
+    const cmdstring2 = `${ffmpeg} -i ${ToPath}/1.mp4 -vf fade=out:130:20 ${ToPath}/3.mp4`;
     await exec(cmdstring2);
   } else {
-    const cmdstring1 = `ffmpeg -i ${ToPath}/1.mp4 -vf fade=in:0:20 ${ToPath}/2.mp4`;
+    const cmdstring1 = `${ffmpeg} -i ${ToPath}/1.mp4 -vf fade=in:0:20 ${ToPath}/2.mp4`;
     await exec(cmdstring1);
-    const cmdstring2 = `ffmpeg -i ${ToPath}/2.mp4 -vf fade=out:130:20 ${ToPath}/3.mp4`;
+    const cmdstring2 = `${ffmpeg} -i ${ToPath}/2.mp4 -vf fade=out:130:20 ${ToPath}/3.mp4`;
     await exec(cmdstring2);
   }
 
-  const cmdstring3 = `ffmpeg -i ${ToPath}/3.mp4 -vcodec copy -acodec copy -vbsf h264_mp4toannexb ${TsDirPath}/${Roomid}.ts`;
+  const cmdstring3 = `${ffmpeg} -i ${ToPath}/3.mp4 -vcodec copy -acodec copy -vbsf h264_mp4toannexb ${TsDirPath}/${Roomid}.ts`;
   await exec(cmdstring3);
   tspath = `${tspath}${TsDirPath}/${Roomid}.ts|`;
   HasTsNum += 1;
@@ -214,31 +258,28 @@ async function megreImage(FilePath, ToPath, TsDirPath, Mp3DirPath, Roomid, Solut
 }
 
 // 更多效果
-async function MoreMagic(FilePath, SolutionImageDirPath) {
-  if (translation) {
-    await magicktranslation(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh);// eslint-disable-line
-    translation = false;
-    near = true;
-    far = false;
-  } else if (near) {
+async function MoreMagic(FilePath, SolutionImageDirPath, roomName, SolutionVideoMp4DirPath) {
+  if (roomName.includes('客厅') || roomName.includes('卧')) {
+    await magicktranslation(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh, SolutionVideoMp4DirPath); // eslint-disable-line
+  } else if (roomName.includes('卫') || roomName.includes('厨') || roomName.includes('餐')) {
     await magickdrawnear(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh); // eslint-disable-line
-    translation = false;
-    near = false;
-    far = true;
-  } else if (far) {
+    const cmdstring = `${ffmpeg} -i ${SolutionImageDirPath}/%3d.jpg ${SolutionVideoMp4DirPath}/1.mp4`;
+    await exec(cmdstring);
+  } else if (roomName.includes('阳台')) {
     await magickdrawfar(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh); // eslint-disable-line
-    translation = true;
-    near = false;
-    far = false;
+    const cmdstring = `${ffmpeg} -i ${SolutionImageDirPath}/%3d.jpg ${SolutionVideoMp4DirPath}/1.mp4`;
+    await exec(cmdstring);
+  } else {
+    await magicktranslation(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh, SolutionVideoMp4DirPath);// eslint-disable-line
   }
 }
 
 // 获取图片尺寸大小
-async function getimagesize(FilePath, SolutionImageDirPath, SolutionVideoMp4DirPath, TsDirPath, Mp3DirPath, Roomid, SolutionId, SolutionDirPath) { // eslint-disable-line
-  const cmdstring = `magick identify -format "%wx%h" ${FilePath}`;
+async function getimagesize(FilePath, SolutionImageDirPath, SolutionVideoMp4DirPath, TsDirPath, Mp3DirPath, Roomid, SolutionId, SolutionDirPath, roomName) { // eslint-disable-line
+  const cmdstring = `${magick} identify -format "%wx%h" ${FilePath}`;
   await exec(cmdstring);
-  await MoreMagic(FilePath, SolutionImageDirPath);
-  await megreImage(SolutionImageDirPath, SolutionVideoMp4DirPath, TsDirPath, Mp3DirPath, Roomid, SolutionId, SolutionDirPath);  // eslint-disable-line
+  await MoreMagic(FilePath, SolutionImageDirPath, roomName, SolutionVideoMp4DirPath);
+  await megreImage(SolutionImageDirPath, SolutionVideoMp4DirPath, TsDirPath, Mp3DirPath, Roomid, SolutionId, SolutionDirPath); // eslint-disable-line
 }
 
 // 开始处理任务
@@ -249,7 +290,7 @@ async function ImagemagickInit(SolutionId, Room, TsDirPath, Mp3DirPath) {
     const SolutionRoomDirPath = path.join(SolutionDirPath, `${Room[index].roomId}`);
     const SolutionImageDirPath = path.join(SolutionRoomDirPath, 'image');
     const SolutionVideoMp4DirPath = path.join(SolutionRoomDirPath, 'video');
-    await getimagesize(`${SolutionRoomDirPath}/image.jpg`, SolutionImageDirPath, SolutionVideoMp4DirPath, TsDirPath, Mp3DirPath, `${Room[index].roomId}`, SolutionId, SolutionDirPath);
+    await getimagesize(`${SolutionRoomDirPath}/image.jpg`, SolutionImageDirPath, SolutionVideoMp4DirPath, TsDirPath, Mp3DirPath, `${Room[index].roomId}`, SolutionId, SolutionDirPath, `${Room[index].roomName}`);
   }
 }
 
@@ -268,7 +309,7 @@ function DownLoadImage(SolutionId, FilePath, Room, index, TsDirPath, Mp3DirPath)
       fs.mkdirSync(SolutionVideoMp4DirPath);
     }
     if (HasDownLoadNum === Room.length) {
-      ImagemagickInit(SolutionId, Room, TsDirPath, Mp3DirPath);// 图片下载完成，开始处理图片
+      ImagemagickInit(SolutionId, Room, TsDirPath, Mp3DirPath); // 图片下载完成，开始处理图片
     }
   }).on('error', () => {
     complete();
@@ -321,12 +362,45 @@ function getIPAdress() {
   }
 }
 
+// 空间重新排序
+function orderRoom(solutionId, Room) {
+  const newRoomArray = [];
+  for (let index = 0; index < Room.length; index += 1) {
+    if (Room[index].roomName === '客厅') {
+      newRoomArray.push(Room[index]);
+      Room.splice(index, 1);
+      for (let i = 0; i < Room.length; i += 1) {
+        if (Room[i].roomName === '餐厅') {
+          newRoomArray.push(Room[i]);
+          Room.splice(i, 1);
+          for (let n = 0; n < Room.length; n += 1) {
+            if (Room[n].roomName === '主卧') {
+              newRoomArray.push(Room[n]);
+              Room.splice(n, 1);
+              for (let m = 0; m < Room.length; m += 1) {
+                if (Room[m].roomName === '次卧') {
+                  newRoomArray.push(Room[m]);
+                  Room.splice(m, 1);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  const newroomlist = newRoomArray.concat(Room);
+  CreateSolutiondir(solutionId, newroomlist);
+}
+
 function Init() {
   getIPAdress();
   IsMaking = false;
   setInterval(() => {
     if (!IsMaking) {
-      const prams = JSON.stringify({ ip: `${ipgetIPAdress}` });
+      const prams = JSON.stringify({
+        ip: `${ipgetIPAdress}`
+      });
       const options = {
         host: 'irayproxy.sit.ihomefnt.org',
         port: '80',
@@ -347,11 +421,9 @@ function Init() {
               HasDownLoadNum = 0;
               HasTsNum = 0;
               tspath = '';
-              translation = true;
-              near = false;
-              far = false;
               IsMaking = true;
-              CreateSolutiondir(obj.data.solutionId, obj.data.images);
+              CurrentjobId = obj.data.jobId;
+              orderRoom(obj.data.solutionId, obj.data.images);
             }
           } else {
             complete();
