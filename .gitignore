@@ -1,4 +1,4 @@
-﻿.DS_Store
+.DS_Store
 dist/*
 coverage
 node_modules/
@@ -6,3 +6,5 @@ thumbs.db
 !.gitkeep
 .idea
 .vscode
+*.jpg
+logs/

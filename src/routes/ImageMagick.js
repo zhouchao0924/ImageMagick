@@ -1,4 +1,4 @@
-/* eslint-disable no-await-in-loop */
+/* eslint-disable no-await-in-loop1 */
 const express = require('express');
 
 const router = express.Router();
@@ -11,31 +11,101 @@ const path = require('path');
 
 const request = require('request');
 
-const http = require('http');
-
 const agileLog = require('agile-log');
 
 const os = require('os');
 
 const log = agileLog.getLogger('app');
 
-// const ffmpeg = '/usr/local/ffmpeg/ffmpeg';
-
-// const magick = '/usr/local/ImageMagick/bin/magick';
-
 const ffmpeg = 'ffmpeg';
 
-const magick = 'magick';
+const magick = 'sudo convert';
+
+const concat = require('ffmpeg-concat');
+
+const exectime = require('child_process').exec;
 
 let CurrentImageSizeW;
 let CurrentImageSizeh;
 let HasDownLoadNum;
 let HasTsNum;
-let tspath;
 let IsMaking;
 let delpath;
 let ipgetIPAdress;
 let CurrentjobId;
+let StyleId;
+let mp4pathlist;
+let totaltime;
+let CurrentvideoSizeW;// eslint-disable-line
+let CurrentvideoSizeh;
+
+const alltransitions = [
+  {
+    name: 'swap',
+    duration: 500
+  },
+  {
+    name: 'cube',
+    duration: 500
+  },
+  {
+    name: 'circleopen',
+    duration: 500
+  },
+  {
+    name: 'directionalwarp',
+    duration: 500
+  }, {
+    name: 'directionalwipe',
+    duration: 500
+  },
+  {
+    name: 'crossWarp',
+    duration: 500
+  },
+  {
+    name: 'crosszoom',
+    duration: 500
+  },
+  {
+    name: 'dreamy',
+    duration: 500
+  }, {
+    name: 'squareswire',
+    duration: 500
+  },
+  {
+    name: 'angular',
+    duration: 500
+  },
+  {
+    name: 'radial',
+    duration: 500
+  },
+  {
+    name: 'fade',
+    duration: 500
+  },
+  {
+    name: 'fadegrayscale',
+    duration: 500
+  }
+];
+
+function getRandomArrayElements(arr, count) {
+  const shuffled = arr.slice(0);
+  const i = arr.length;
+  const min = i - count;
+  let tempa;
+  let index;
+  for (let i = 0; min < i; i--) {
+    index = Math.floor((i + 1) * Math.random());
+    tempa = shuffled[index];
+    shuffled[index] = shuffled[i];
+    shuffled[i] = tempa;
+  }
+  return shuffled.slice(min);
+}
 
 // 执行cmd命令
 async function exec(cmd) {
@@ -79,7 +149,8 @@ function deleteFolder(solutionpath) {
 }
 
 // 完成和失败都要做的错误处理
-function complete() {
+function complete(logs) {
+  log.info(logs);
   deleteFolder(delpath);
   setTimeout(() => {
     IsMaking = false;
@@ -88,46 +159,39 @@ function complete() {
 
 // 上传完成后，给后台的回执
 function callback(SolutionId, url) {
-  const requestData = JSON.stringify({
+  const requestData = {
     message: '视频制作完成',
     solutionId: SolutionId,
     jobId: CurrentjobId,
     success: true,
     videoUrl: url
-  });
+  };
   const options = {
-    host: 'irayproxy.sit.ihomefnt.org',
-    port: '80',
+    url: 'http://irayproxy.sit.ihomefnt.org/collectVideoResult',
     method: 'POST',
-    path: '/collectVideoResult',
+    json: true,
     headers: {
       'Content-Type': 'application/json'
-    }
+    },
+    body: requestData
   };
-  let abody = '';
-  const req = http.request(options, (res) => {
-    res.on('data', (data) => {
-      abody += data;
-    }).on('end', () => {
-      const dataobj = JSON.parse(abody);
-      if (dataobj.success) {
-        log.info(`${SolutionId}任务结束,上传回执完成`);
-        complete();
+  request(options, (err, res, body) => {
+    if (!err && res.statusCode === 200) {
+      if (body.success) {
+        complete(`${SolutionId}任务结束,上传回执完成`);
       } else {
-        complete();
+        complete('回执上传失败');
       }
-    }).on('error', () => {
-      complete();
-    });
+    } else {
+      complete('回执接口调动失败');
+    }
   });
-  req.write(requestData);
-  req.end();
 }
 
 // 上传视频
 function UploadMP4(FilePath, SolutionId) {
   let sbody = '';
-  const upload = request.post('http://192.168.1.76:11133/unifyfile/file/drGeneralUpload');
+  const upload = request.post('http://192.168.1.33:11133/unifyfile/file/drGeneralUpload');
   upload.setHeader('content-type', 'multipart/form-data');
   const form = upload.form();
   form.append('file', fs.createReadStream(`${FilePath}`));
@@ -140,10 +204,10 @@ function UploadMP4(FilePath, SolutionId) {
       log.info(`${SolutionId}任务视频上传完成`);
       callback(SolutionId, obj.data);
     } else {
-      complete();
+      complete('上传失败');
     }
   }).on('error', () => {
-    complete();
+    complete('上传视频接口调用失败');
   });
 }
 
@@ -151,40 +215,40 @@ function UploadMP4(FilePath, SolutionId) {
 // 平移效果
 async function magicktranslation(FilePath, ToPath, w, h, SolutionVideoMp4DirPath) {
   if (CurrentImageSizeW === 2560 && CurrentImageSizeh === 1440) {
-    for (let index = 0; index < 200; index += 1) {
+    for (let index = 0; index < 400; index += 1) {
       const Name = intToString(index, 3);
       const cw = h / 2;
-      const cmdstring = `${magick} ${FilePath} -crop ${cw}x${h}+${w / 2 - 1160 + index * 8}+0 ${ToPath}/${Name}.jpg`;
+      const cmdstring = `${magick} ${FilePath} -crop ${cw}x${h}+${w / 2 - 1160 + index * 4}+0 ${ToPath}/${Name}.jpg`;
       await exec(cmdstring);
     }
-    const cmdstring2 = `${ffmpeg} -i ${ToPath}/%3d.jpg -an -filter:v "setpts=0.6*PTS" ${SolutionVideoMp4DirPath}/1.mp4`;
+    const cmdstring2 = `${ffmpeg} -i ${ToPath}/%3d.jpg -s 1080x2160 -filter:v "setpts=0.3*PTS" ${SolutionVideoMp4DirPath}/1.mp4`;
     await exec(cmdstring2);
   } else if (CurrentImageSizeW === 1920 && CurrentImageSizeh === 1440) {
-    for (let index = 0; index < 200; index += 1) {
+    for (let index = 0; index < 400; index += 1) {
       const Name = intToString(index, 3);
       const cw = h / 2;
-      const cmdstring = `${magick} ${FilePath} -crop ${cw}x${h}+${w / 2 - 960 + index * 6}+0 ${ToPath}/${Name}.jpg`;
+      const cmdstring = `${magick} ${FilePath} -crop ${cw}x${h}+${w / 2 - 960 + index * 3}+0 ${ToPath}/${Name}.jpg`;
       await exec(cmdstring);
     }
-    const cmdstring2 = `${ffmpeg} -i ${ToPath}/%3d.jpg -an -filter:v "setpts=0.8*PTS" ${SolutionVideoMp4DirPath}/1.mp4`;
+    const cmdstring2 = `${ffmpeg} -i ${ToPath}/%3d.jpg -s 1080x2160 -filter:v "setpts=0.3*PTS" ${SolutionVideoMp4DirPath}/1.mp4`;
     await exec(cmdstring2);
   } else if (CurrentImageSizeW === 3840 && CurrentImageSizeh === 2160) {
-    for (let index = 0; index < 200; index += 1) {
+    for (let index = 0; index < 400; index += 1) {
       const Name = intToString(index, 3);
       const cw = h / 2;
-      const cmdstring = `${magick} ${FilePath} -crop ${cw}x${h}+${w / 2 - 1740 + index * 12}+0 ${ToPath}/${Name}.jpg`;
+      const cmdstring = `${magick} ${FilePath} -crop ${cw}x${h}+${w / 2 - 1740 + index * 6}+0 ${ToPath}/${Name}.jpg`;
       await exec(cmdstring);
     }
-    const cmdstring2 = `${ffmpeg} -i ${ToPath}/%3d.jpg -an -filter:v "setpts=0.6*PTS" ${SolutionVideoMp4DirPath}/1.mp4`;
+    const cmdstring2 = `${ffmpeg} -i ${ToPath}/%3d.jpg -s 1080x2160 -filter:v "setpts=0.3*PTS" ${SolutionVideoMp4DirPath}/1.mp4`;
     await exec(cmdstring2);
   } else if (CurrentImageSizeW === 2880 && CurrentImageSizeh === 2160) {
-    for (let index = 0; index < 200; index += 1) {
+    for (let index = 0; index < 400; index += 1) {
       const Name = intToString(index, 3);
       const cw = h / 2;
-      const cmdstring = `${magick} ${FilePath} -crop ${cw}x${h}+${w / 2 - 1340 + index * 8}+0 ${ToPath}/${Name}.jpg`;
+      const cmdstring = `${magick} ${FilePath} -crop ${cw}x${h}+${w / 2 - 1340 + index * 4}+0 ${ToPath}/${Name}.jpg`;
       await exec(cmdstring);
     }
-    const cmdstring2 = `${ffmpeg} -i ${ToPath}/%3d.jpg -an -filter:v "setpts=0.8*PTS" ${SolutionVideoMp4DirPath}/1.mp4`;
+    const cmdstring2 = `${ffmpeg} -i ${ToPath}/%3d.jpg -s 1080x2160 -filter:v "setpts=0.3*PTS" ${SolutionVideoMp4DirPath}/1.mp4`;
     await exec(cmdstring2);
   }
 }
@@ -193,7 +257,7 @@ async function magicktranslation(FilePath, ToPath, w, h, SolutionVideoMp4DirPath
 async function magickdrawnear(FilePath, ToPath, w, h) {
   for (let index = 0; index < 100; index += 1) {
     const Name = intToString(index, 3);
-    const ch = h * (1 - index * 0.002);
+    const ch = h * (1 - index * 0.004);
     const cw = ch / 2;
     const cmdstring = `${magick} ${FilePath} -gravity center -extent ${cw}x${ch} ${ToPath}/${Name}.jpg`;
     await exec(cmdstring);
@@ -204,7 +268,7 @@ async function magickdrawnear(FilePath, ToPath, w, h) {
 async function magickdrawfar(FilePath, ToPath, w, h) {
   for (let index = 0; index < 100; index += 1) {
     const Name = intToString(index, 3);
-    const ch = h * (1 - (100 - index) * 0.002);
+    const ch = h * (1 - (100 - index) * 0.004);
     const cw = ch / 2;
     const cmdstring = `${magick} ${FilePath} -gravity center -extent ${cw}x${ch} -resize ${h / 2}x${h} ${ToPath}/${Name}.jpg`;
     await exec(cmdstring);
@@ -212,91 +276,153 @@ async function magickdrawfar(FilePath, ToPath, w, h) {
 }
 
 // 添加音乐和水印
-async function AddMusic(time, RootPath, SolutionDirPath, SolutionId) {
-  let alltime;
-  if (time >= 60) {
-    alltime = `00:01:${time - 60}`;
-  } else {
-    alltime = time;
-  }
-  const cmdstring = `${ffmpeg} -i ${RootPath}/Music.mp3 -ss 00:00:25 -t ${alltime} -acodec copy ${SolutionDirPath}/mp3/${SolutionId}.mp3`;
+async function AddMusic(RootPath, SolutionDirPath, SolutionId, Style) {
+  const cmdstring = `ffmpeg -i ${SolutionDirPath}/${SolutionId}-ts.mp4 -vcodec copy -acodec copy -vbsf h264_mp4toannexb ${SolutionDirPath}/1.ts`;
   await exec(cmdstring);
-  const cmdstring1 = `${ffmpeg} -i ${SolutionDirPath}/${SolutionId}.mp4 -i ${SolutionDirPath}/mp3/${SolutionId}.mp3 -c:v copy -c:a aac -strict experimental ${SolutionDirPath}/${SolutionId}-output.mp4`;
-  await exec(cmdstring1);
-  const cmdstring2 = `${ffmpeg} -i ${SolutionDirPath}/${SolutionId}-output.mp4 -ignore_loop 0 -i ${RootPath}/logo.gif -filter_complex "[0:v][1:v]overlay=10:10:shortest=1" ${SolutionDirPath}/${SolutionId}-v.mp4`;
-  await exec(cmdstring2);
+  if (CurrentvideoSizeW === 720) {
+    const cmdstring2 = `ffmpeg -i "concat:${SolutionDirPath}/1.ts|${RootPath}/720.ts" -acodec copy -vcodec copy -absf aac_adtstoasc ${SolutionDirPath}/${SolutionId}.mp4`;
+    await exec(cmdstring2);
+  } else {
+    const cmdstring2 = `ffmpeg -i "concat:${SolutionDirPath}/1.ts|${RootPath}/1080.ts" -acodec copy -vcodec copy -absf aac_adtstoasc ${SolutionDirPath}/${SolutionId}.mp4`;
+    await exec(cmdstring2);
+  }
+  let alltime;
+  if (totaltime >= 60) {
+    alltime = `00:01:${totaltime - 60}`;
+  } else {
+    alltime = totaltime + 2;
+  }
+  const myDate = new Date();
+  const currentSeconds = myDate.getSeconds().toString();
+  const MusicName = currentSeconds.substr(currentSeconds.length - 1, 1);
+  const cmdstring3 = `${ffmpeg} -i ${RootPath}/${Style}/${MusicName}.mp3 -ss 00:00:00 -t ${alltime} -acodec copy ${SolutionDirPath}/mp3/${SolutionId}.mp3`;
+  await exec(cmdstring3);
+  const cmdstring4 = `${ffmpeg} -i ${SolutionDirPath}/${SolutionId}.mp4 -i ${SolutionDirPath}/mp3/${SolutionId}.mp3 -c:v copy -c:a aac -strict experimental ${SolutionDirPath}/${SolutionId}-output.mp4`;
+  await exec(cmdstring4);
+  const cmdstring5 = `${ffmpeg} -i ${SolutionDirPath}/${SolutionId}-output.mp4 -ignore_loop 0 -i ${RootPath}/logo.gif -filter_complex "[0:v][1:v]overlay=${CurrentvideoSizeh / 4 - 300}:${CurrentvideoSizeh - 200}:shortest=1" ${SolutionDirPath}/${SolutionId}-v.mp4`;
+  await exec(cmdstring5);
   UploadMP4(`${SolutionDirPath}/${SolutionId}-v.mp4`, SolutionId);
 }
 
-// 连接各个TS文件
-async function concatTS(SolutionId, SolutionDirPath, time) {
+// 获取视频时长和分辨率
+async function getvideotimeandsize(Filepath, RootPath, SolutionDirPath, SolutionId) {
+  const cmd = `ffmpeg -i ${Filepath}`;
+  await exectime(cmd, (err, stdout, stderr) => {
+    const outStr = stderr.toString();
+    const regDurationtime = /Duration\: ([0-9\:\.]+),/;// eslint-disable-line
+    const rstime = regDurationtime.exec(outStr);
+
+    let videosize;
+    const regDurationSize = /[0-9]{4}x[0-9]{4}/;
+    if (regDurationSize.exec(outStr)) {
+      videosize = regDurationSize.exec(outStr);
+    } else {
+      const reg = /[0-9]{3}x[0-9]{4}/;
+      videosize = reg.exec(outStr);
+    }
+    if (rstime && rstime[1]) {
+      const timeStr = rstime[1];
+      const hour = timeStr.split(':')[0];
+      const min = timeStr.split(':')[1];
+      const sec = timeStr.split(':')[2].split('.')[0];
+      totaltime = Number(hour * 3600) + Number(min * 60) + Number(sec);
+    }
+    if (videosize[0]) {
+      const sizeStr = videosize[0];
+      const SizeArray = sizeStr.split('x');
+      CurrentvideoSizeW = Number(SizeArray[0]);
+      CurrentvideoSizeh = Number(SizeArray[1]);
+    }
+    AddMusic(RootPath, SolutionDirPath, SolutionId, StyleId);
+  });
+}
+
+// 将所有视频连接起来
+async function concatmp4(SolutionId, SolutionDirPath) {
   const RootPath = path.join(__dirname, 'ImageSpace');
-  const cmdstring = `${ffmpeg} -i "concat:${tspath}${RootPath}/over.ts" -acodec copy -vcodec copy -absf aac_adtstoasc ${SolutionDirPath}/${SolutionId}.mp4`;
-  await exec(cmdstring);
-  AddMusic(time, RootPath, SolutionDirPath, SolutionId);
+  // const currentlist = alltransitions.slice(0, HasTsNum - 1);
+  if (HasTsNum > 1) {
+    await concat({
+      output: `${SolutionDirPath}/${SolutionId}-ts.mp4`,
+      videos: mp4pathlist,
+      transitions: getRandomArrayElements(alltransitions, HasTsNum - 1)
+    });
+  }
+  await getvideotimeandsize(`${SolutionDirPath}/${SolutionId}-ts.mp4`, RootPath, SolutionDirPath, SolutionId);
+}
+
+// 转场效果连接各个MP4文件
+async function concatTS(SolutionId, SolutionDirPath) {
+  concatmp4(SolutionId, SolutionDirPath);
 }
 
 // 生成完图片后用ffmpeg生成视频
-async function megreImage(FilePath, ToPath, TsDirPath, Mp3DirPath, Roomid, SolutionId, SolutionDirPath) { // eslint-disable-line
-  if (HasTsNum === 0) {
-    const cmdstring2 = `${ffmpeg} -i ${ToPath}/1.mp4 -vf fade=out:130:20 ${ToPath}/3.mp4`;
-    await exec(cmdstring2);
-  } else {
-    const cmdstring1 = `${ffmpeg} -i ${ToPath}/1.mp4 -vf fade=in:0:20 ${ToPath}/2.mp4`;
-    await exec(cmdstring1);
-    const cmdstring2 = `${ffmpeg} -i ${ToPath}/2.mp4 -vf fade=out:130:20 ${ToPath}/3.mp4`;
-    await exec(cmdstring2);
-  }
-
-  const cmdstring3 = `${ffmpeg} -i ${ToPath}/3.mp4 -vcodec copy -acodec copy -vbsf h264_mp4toannexb ${TsDirPath}/${Roomid}.ts`;
-  await exec(cmdstring3);
-  tspath = `${tspath}${TsDirPath}/${Roomid}.ts|`;
+async function megreImage(SolutionId, SolutionDirPath, SolutionVideoMp4DirPath) { // eslint-disable-line
   HasTsNum += 1;
+  mp4pathlist.push(`${SolutionVideoMp4DirPath}/1.mp4`);
   if (HasTsNum === HasDownLoadNum) {
-    await concatTS(SolutionId, SolutionDirPath, HasTsNum * 6 + 3);
+    await concatTS(SolutionId, SolutionDirPath);
   }
 }
 
 // 更多效果
 async function MoreMagic(FilePath, SolutionImageDirPath, roomName, SolutionVideoMp4DirPath) {
   if (roomName.includes('客厅') || roomName.includes('卧')) {
-    await magicktranslation(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh, SolutionVideoMp4DirPath); // eslint-disable-line
-  } else if (roomName.includes('卫') || roomName.includes('厨') || roomName.includes('餐')) {
+    if (CurrentImageSizeW === 1080 && CurrentImageSizeh === 1440) {
+      await magickdrawnear(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh); // eslint-disable-line
+      const cmdstring = `${ffmpeg} -i ${SolutionImageDirPath}/%3d.jpg -s 1080x2160 -filter:v "setpts=0.8*PTS" ${SolutionVideoMp4DirPath}/1.mp4`;
+      await exec(cmdstring);
+    } else if (CurrentImageSizeW === 1620 && CurrentImageSizeh === 2160) {
+      await magickdrawnear(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh); // eslint-disable-line
+      const cmdstring = `${ffmpeg} -i ${SolutionImageDirPath}/%3d.jpg -s 1080x2160 -filter:v "setpts=0.8*PTS" ${SolutionVideoMp4DirPath}/1.mp4`;
+      await exec(cmdstring);
+    } else {
+      await magicktranslation(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh, SolutionVideoMp4DirPath); // eslint-disable-line
+    }
+  } else if (roomName.includes('餐') || roomName.includes('厨')) {
     await magickdrawnear(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh); // eslint-disable-line
-    const cmdstring = `${ffmpeg} -i ${SolutionImageDirPath}/%3d.jpg ${SolutionVideoMp4DirPath}/1.mp4`;
+    const cmdstring = `${ffmpeg} -i ${SolutionImageDirPath}/%3d.jpg -s 1080x2160 -filter:v "setpts=0.8*PTS" ${SolutionVideoMp4DirPath}/1.mp4`;
     await exec(cmdstring);
-  } else if (roomName.includes('阳台')) {
+  } else if (roomName.includes('卫')) {
     await magickdrawfar(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh); // eslint-disable-line
-    const cmdstring = `${ffmpeg} -i ${SolutionImageDirPath}/%3d.jpg ${SolutionVideoMp4DirPath}/1.mp4`;
+    const cmdstring = `${ffmpeg} -i ${SolutionImageDirPath}/%3d.jpg -s 1080x2160 -filter:v "setpts=0.8*PTS" ${SolutionVideoMp4DirPath}/1.mp4`;
+    await exec(cmdstring);
+  } else if (CurrentImageSizeW === 1080 && CurrentImageSizeh === 1440) {
+    await magickdrawfar(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh); // eslint-disable-line
+    const cmdstring = `${ffmpeg} -i ${SolutionImageDirPath}/%3d.jpg -s 1080x2160 -filter:v "setpts=0.8*PTS" ${SolutionVideoMp4DirPath}/1.mp4`;
+    await exec(cmdstring);
+  } else if (CurrentImageSizeW === 1620 && CurrentImageSizeh === 2160) {
+    await magickdrawfar(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh); // eslint-disable-line
+    const cmdstring = `${ffmpeg} -i ${SolutionImageDirPath}/%3d.jpg -s 1080x2160 -filter:v "setpts=0.8*PTS" ${SolutionVideoMp4DirPath}/1.mp4`;
     await exec(cmdstring);
   } else {
-    await magicktranslation(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh, SolutionVideoMp4DirPath);// eslint-disable-line
+    await magicktranslation(FilePath, SolutionImageDirPath, CurrentImageSizeW, CurrentImageSizeh, SolutionVideoMp4DirPath); // eslint-disable-line
   }
 }
 
 // 获取图片尺寸大小
-async function getimagesize(FilePath, SolutionImageDirPath, SolutionVideoMp4DirPath, TsDirPath, Mp3DirPath, Roomid, SolutionId, SolutionDirPath, roomName) { // eslint-disable-line
+async function getimagesize(FilePath, SolutionImageDirPath, SolutionVideoMp4DirPath, SolutionId, SolutionDirPath, roomName) { // eslint-disable-line
   const cmdstring = `${magick} identify -format "%wx%h" ${FilePath}`;
   await exec(cmdstring);
   await MoreMagic(FilePath, SolutionImageDirPath, roomName, SolutionVideoMp4DirPath);
-  await megreImage(SolutionImageDirPath, SolutionVideoMp4DirPath, TsDirPath, Mp3DirPath, Roomid, SolutionId, SolutionDirPath); // eslint-disable-line
+  await megreImage(SolutionId, SolutionDirPath, SolutionVideoMp4DirPath); // eslint-disable-line
 }
 
 // 开始处理任务
-async function ImagemagickInit(SolutionId, Room, TsDirPath, Mp3DirPath) {
+async function ImagemagickInit(SolutionId, Room) {
   const SolutionDirPath = path.join(__dirname, `ImageSpace/${SolutionId}`);
   // 按空间文件夹处理图片
   for (let index = 0; index < Room.length; index += 1) {
     const SolutionRoomDirPath = path.join(SolutionDirPath, `${Room[index].roomId}`);
     const SolutionImageDirPath = path.join(SolutionRoomDirPath, 'image');
     const SolutionVideoMp4DirPath = path.join(SolutionRoomDirPath, 'video');
-    await getimagesize(`${SolutionRoomDirPath}/image.jpg`, SolutionImageDirPath, SolutionVideoMp4DirPath, TsDirPath, Mp3DirPath, `${Room[index].roomId}`, SolutionId, SolutionDirPath, `${Room[index].roomName}`);
+    await getimagesize(`${SolutionRoomDirPath}/image.jpg`, SolutionImageDirPath, SolutionVideoMp4DirPath, SolutionId, SolutionDirPath, `${Room[index].roomName}`);
   }
 }
 
 // 循环多线程下载
-function DownLoadImage(SolutionId, FilePath, Room, index, TsDirPath, Mp3DirPath) {
-  const stream = fs.createWriteStream(path.join(FilePath, 'image.jpg'));
+function DownLoadImage(SolutionId, FilePath, Room, index) {
+  const stream = fs.createWriteStream(path.join(FilePath, 'image.jpg'), { autoClose: true });
   request(`${Room[index].imageUrlList[0]}!original`).pipe(stream).on('close', () => {
     log.info(`${SolutionId}${FilePath}图片下载完成`);
     HasDownLoadNum += 1;
@@ -309,10 +435,10 @@ function DownLoadImage(SolutionId, FilePath, Room, index, TsDirPath, Mp3DirPath)
       fs.mkdirSync(SolutionVideoMp4DirPath);
     }
     if (HasDownLoadNum === Room.length) {
-      ImagemagickInit(SolutionId, Room, TsDirPath, Mp3DirPath); // 图片下载完成，开始处理图片
+      ImagemagickInit(SolutionId, Room); // 图片下载完成，开始处理图片
     }
   }).on('error', () => {
-    complete();
+    complete('图片下载失败');
   });
 }
 
@@ -328,7 +454,6 @@ function CreateSolutiondir(SolutionId, Room) {
   // 按空间创建文件夹
   for (let index = 0; index < Room.length; index += 1) {
     const SolutionRoomDirPath = path.join(SolutionDirPath, `${Room[index].roomId}`);
-    const SolutionVideoTsDirPath = path.join(SolutionDirPath, 'ts');
     const SolutionVideoMp3DirPath = path.join(SolutionDirPath, 'mp3');
     if (!fs.existsSync(SolutionDirPath)) {
       fs.mkdirSync(SolutionDirPath);
@@ -336,13 +461,10 @@ function CreateSolutiondir(SolutionId, Room) {
     if (!fs.existsSync(SolutionRoomDirPath)) {
       fs.mkdirSync(SolutionRoomDirPath);
     }
-    if (!fs.existsSync(SolutionVideoTsDirPath)) {
-      fs.mkdirSync(SolutionVideoTsDirPath);
-    }
     if (!fs.existsSync(SolutionVideoMp3DirPath)) {
       fs.mkdirSync(SolutionVideoMp3DirPath);
     }
-    DownLoadImage(SolutionId, SolutionRoomDirPath, Room, index, SolutionVideoTsDirPath, SolutionVideoMp3DirPath); // eslint-disable-line
+    DownLoadImage(SolutionId, SolutionRoomDirPath, Room, index); // eslint-disable-line
   }
 }
 
@@ -389,8 +511,51 @@ function orderRoom(solutionId, Room) {
       }
     }
   }
+  const lastroomlist = [];
   const newroomlist = newRoomArray.concat(Room);
-  CreateSolutiondir(solutionId, newroomlist);
+  for (let index = 0; index < newroomlist.length; index += 1) {
+    if (!newroomlist[index].roomName.includes('阳台') && !newroomlist[index].roomName.includes('房') && !newroomlist[index].roomName.includes('卫') && !newroomlist[index].roomName.includes('间') && !newroomlist[index].roomName.includes('室')) {
+      lastroomlist.push(newroomlist[index]);
+    }
+  }
+  CreateSolutiondir(solutionId, lastroomlist);
+}
+
+function req() {
+  const prams = {
+    ip: `${ipgetIPAdress}`
+  };
+  const options = {
+    url: 'http://irayproxy.sit.ihomefnt.org/popVideoJob',
+    method: 'POST',
+    json: true,
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: prams
+  };
+  request(options, (err, res, data) => {
+    if (!err && res.statusCode === 200) {
+      if (data.success) {
+        if (data.data) {
+          HasDownLoadNum = 0;
+          HasTsNum = 0;
+          mp4pathlist = [];
+          IsMaking = true;
+          totaltime = 0;
+          CurrentvideoSizeW = 0;
+          CurrentvideoSizeh = 0;
+          StyleId = data.data.styleId ? data.data.styleId : 4;
+          CurrentjobId = data.data.jobId;
+          orderRoom(data.data.solutionId, data.data.images);
+        }
+      } else {
+        complete('未获取任务数据');
+      }
+    } else {
+      complete('获取任务接口调用失败');
+    }
+  });
 }
 
 function Init() {
@@ -398,44 +563,9 @@ function Init() {
   IsMaking = false;
   setInterval(() => {
     if (!IsMaking) {
-      const prams = JSON.stringify({
-        ip: `${ipgetIPAdress}`
-      });
-      const options = {
-        host: 'irayproxy.sit.ihomefnt.org',
-        port: '80',
-        method: 'POST',
-        path: '/popVideoJob',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      };
-      let body = '';
-      const req = http.request(options, (res) => {
-        res.on('data', (data) => {
-          body += data;
-        }).on('end', () => {
-          const obj = JSON.parse(body);
-          if (obj.success) {
-            if (obj.data) {
-              HasDownLoadNum = 0;
-              HasTsNum = 0;
-              tspath = '';
-              IsMaking = true;
-              CurrentjobId = obj.data.jobId;
-              orderRoom(obj.data.solutionId, obj.data.images);
-            }
-          } else {
-            complete();
-          }
-        }).on('error', () => {
-          complete();
-        });
-      });
-      req.write(prams);
-      req.end();
+      req();
     }
-  }, 30000);
+  }, 10000);
 }
 
 Init();

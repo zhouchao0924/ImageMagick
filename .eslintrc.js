@@ -1,5 +1,5 @@
 module.exports = {
-  root: true,
+  root: false,
   extends: 'airbnb-base',
   rules: {
     'global-require': 'off',
